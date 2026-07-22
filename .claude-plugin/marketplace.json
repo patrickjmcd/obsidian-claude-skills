@@ -1,0 +1,14 @@
+{
+  "name": "obsidian-claude-skills",
+  "owner": {
+    "name": "Patrick McDonagh",
+    "email": "patrickjmcd@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "obsidian-tools",
+      "source": "./",
+      "description": "Skills and slash commands for running an Obsidian vault from the terminal with Claude Code."
+    }
+  ]
+}
