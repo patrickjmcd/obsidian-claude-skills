@@ -54,7 +54,7 @@ A "section" in a daily note is bounded by lines containing only `---` (or the fi
 - Capture the date (`YYYY-MM-DD`) for the frontmatter of every note we create.
 
 ### 2. Split and classify
-- **First, strip Obsidian comment blocks (`%% ... %%`) from the file.** These are template-instruction blocks that render invisibly in preview mode and must never be treated as content. Remove every `%% ... %%` (including multi-line ones) before splitting into sections. The Daily Note template ships an instruction block above the first `---`; without this step, that block becomes a phantom first "section."
+- **First, strip Obsidian comment blocks (`%% ... %%`) from the file.** These are template-instruction blocks that render invisibly in preview mode and must never be treated as content. Remove every `%% ... %%` (including multi-line ones) before splitting into sections. The Daily Note template puts an instruction block at the very top (directly followed by the first `## ` heading — no leading `---`); without stripping it, the parser treats those instruction bullets as section content and can even trip the `patch_content` bare-`---` gotcha below.
 - Split on `\n---\n` (and treat file start/end as boundaries).
 - For each section:
   - Parse the H2 heading (first `## ` line).
@@ -130,6 +130,10 @@ For the last section (no trailing `---` originally), omit it:
 
 **Gotcha: `patch_content` cannot edit list-valued frontmatter.** If you need to fix the `attendees:` list on a just-created note (e.g. wrong wikilink), `obsidian_patch_content` with `target_type=frontmatter, target=attendees, operation=replace` will coerce whatever you pass (YAML block, JSON array, comma list) into a single quoted **string** — breaking the list format sibling notes and dataview queries depend on. The reliable fix is `obsidian_delete_file` + `obsidian_append_content` to rewrite the file with the correct YAML list.
 
+**Gotcha: `patch_content` returns `invalid-target` when the file has a bare `---` line before the first real content.** The Local REST API parser treats such a `---` as YAML frontmatter start and then can't find any headings at all (every `target_type=heading` call fails, not just one). This shows up when a `%% ... %%` comment block is followed by a blank line and then `---` before the first `## ` heading — a shape older versions of the Daily Note template used to ship. Two ways to handle it:
+- **Preferred:** ensure the file has no bare `---` between the top and the first H2. The current template puts the `%% %%` block *directly* above the first `## ` (no leading `---`), so this case shouldn't reappear.
+- **Fallback if it does:** delete the daily note and re-append the whole file with all H2 stubs baked in. Preserve the leading `%% %%` block verbatim. Slower and heavier than patching, but reliable.
+
 ### 7. Confirm what changed
 Report back:
 - Each new note path created (with its wikilink for pasting elsewhere).
@@ -139,7 +143,7 @@ Report back:
 ## Edge cases
 
 - **No `---` separators at all.** Treat the whole file as a single section; the rules above still apply (usually results in Skip).
-- **Template preamble above the first `---`.** The Daily Note template puts a `%% ... %%` instruction block there. Strip comment blocks first (step 2), then this section is empty → Skip. Leave the preamble content in the daily note untouched.
+- **Template preamble at the top of the file.** The Daily Note template puts a `%% ... %%` instruction block directly above the first `## ` heading (no leading `---`). Strip comment blocks first (step 2). What's left in the first section is just that H2 and its body — process it like any other section. The `%%` block itself is discarded from parsing but stays in the daily note on disk untouched.
 - **Section has `#parent` but no heading.** Ask for a title — a moved note without a filename can't be created.
 - **Multiple `#parent:` values in one section.** Ask which one wins; don't guess.
 - **Attendee wikilink refers to a note that doesn't exist yet.** Offer to create it via [[obsidian-notes]] `create-user` mode before finishing the split, so backlinks resolve.
