@@ -54,7 +54,8 @@ A "section" in a daily note is bounded by lines containing only `---` (or the fi
 - Capture the date (`YYYY-MM-DD`) for the frontmatter of every note we create.
 
 ### 2. Split and classify
-- **First, strip Obsidian comment blocks (`%% ... %%`) from the file.** These are template-instruction blocks that render invisibly in preview mode and must never be treated as content. Remove every `%% ... %%` (including multi-line ones) before splitting into sections. The Daily Note template puts an instruction block at the very top (directly followed by the first `## ` heading — no leading `---`); without stripping it, the parser treats those instruction bullets as section content and can even trip the `patch_content` bare-`---` gotcha below.
+- **First, strip Obsidian comment blocks (`%% ... %%`) from the file.** These are template-instruction blocks that render invisibly in preview mode and must never be treated as content. Remove every `%% ... %%` (including multi-line ones) before splitting into sections. The Daily Note template puts an instruction block at the very top (directly followed by the first `## ` heading); without stripping it, the parser treats those instruction bullets as section content.
+- **Then check for a leading `%% ... %%` block on disk.** If the file starts with one, the fast path (`patch_content`) will fail — see the gotcha in step 6. Plan to use the delete + re-append fallback for that file's daily-note rewrite step.
 - Split on `\n---\n` (and treat file start/end as boundaries).
 - For each section:
   - Parse the H2 heading (first `## ` line).
@@ -130,9 +131,10 @@ For the last section (no trailing `---` originally), omit it:
 
 **Gotcha: `patch_content` cannot edit list-valued frontmatter.** If you need to fix the `attendees:` list on a just-created note (e.g. wrong wikilink), `obsidian_patch_content` with `target_type=frontmatter, target=attendees, operation=replace` will coerce whatever you pass (YAML block, JSON array, comma list) into a single quoted **string** — breaking the list format sibling notes and dataview queries depend on. The reliable fix is `obsidian_delete_file` + `obsidian_append_content` to rewrite the file with the correct YAML list.
 
-**Gotcha: `patch_content` returns `invalid-target` when the file has a bare `---` line before the first real content.** The Local REST API parser treats such a `---` as YAML frontmatter start and then can't find any headings at all (every `target_type=heading` call fails, not just one). This shows up when a `%% ... %%` comment block is followed by a blank line and then `---` before the first `## ` heading — a shape older versions of the Daily Note template used to ship. Two ways to handle it:
-- **Preferred:** ensure the file has no bare `---` between the top and the first H2. The current template puts the `%% %%` block *directly* above the first `## ` (no leading `---`), so this case shouldn't reappear.
-- **Fallback if it does:** delete the daily note and re-append the whole file with all H2 stubs baked in. Preserve the leading `%% %%` block verbatim. Slower and heavier than patching, but reliable.
+**Gotcha: `patch_content` returns `invalid-target` for every heading when the file starts with a `%% ... %%` comment block.** Empirically confirmed: any `%% ... %%` block at the top of the file — with OR without a bare `---` between it and the first H2 — breaks `target_type=heading` lookups entirely. Every heading call on that file fails, not just one. (An earlier version of this note blamed only the bare `---`; that was incomplete. The `%%` block alone is enough.) There's no known way to reshape the daily note to avoid this while keeping the template preamble.
+
+- **Fallback:** for any daily note that starts with `%% ... %%`, don't try `patch_content`. Instead, read the whole file, build the new content in memory (preserve the `%% %%` block verbatim, stub the promoted H2 sections, leave the untouched sections in place), `obsidian_delete_file` the daily note, then `obsidian_append_content` to rewrite it whole. It's heavier than patching but 100% reliable.
+- **Fast path still works** for daily notes that have NO `%% ... %%` preamble at all (older notes from before the template was introduced). Use `patch_content` per H2 as normal in that case.
 
 ### 7. Confirm what changed
 Report back:
