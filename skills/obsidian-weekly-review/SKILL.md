@@ -10,7 +10,8 @@ A once-a-week pass that turns a week of daily notes into a short recap and a to-
 ## Tools
 
 `mcp-obsidian` MCP server:
-- `obsidian_get_recent_periodic_notes` (period `daily`, `include_content: true`) — the week's daily notes.
+- `obsidian_list_files_in_dir` on `Daily Notes/YYYY/MM/` — find the week's daily notes (a week can span two month folders).
+- `obsidian_get_recent_periodic_notes` (period `daily`, `include_content: true`) — optional shortcut. Returns 404 unless the Periodic Notes community plugin is installed — then fall back to `obsidian_list_files_in_dir` on `Daily Notes/YYYY/MM/`.
 - `obsidian_get_file_contents` / `obsidian_batch_get_file_contents` — read notes.
 - `obsidian_get_recent_changes` (days ≈ 7–8) — notes created or edited this week.
 - `obsidian_complex_search` — find tasks with due or done dates (regexp on content).
