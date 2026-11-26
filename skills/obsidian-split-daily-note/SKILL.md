@@ -34,7 +34,7 @@ A "section" in a daily note is bounded by lines containing only `---` (or the fi
 ## Rules
 
 1. **`---` demarcates a section.** Split on lines matching exactly `---`.
-2. **No `#parent` tag → leave in place** by default. If the section looks *substantive* (multiple bullets, decisions, action items, named stakeholders, or a topic the user is clearly tracking over time), surface it to the user with a proposed folder + title and ask before moving. Never move it silently.
+2. **No `#parent` tag → leave in place** by default. A `#parent:` line with nothing after it (the template's blank starter) counts as no `#parent`. If the section looks *substantive* (multiple bullets, decisions, action items, named stakeholders, or a topic the user is clearly tracking over time), surface it to the user with a proposed folder + title and ask before moving. Never move it silently.
 3. **If the heading starts with an attendee's display name, drop that name from the title.** Match the display name portion of an `#attendees:` wikilink (`Tony Stark` from `[[Tony Stark (Stark)]]`) against the leading portion of the heading, up to the first ` - ` / ` — ` / `:` separator. If it matches, strip the prefix and separator.
    - `Tony Stark - Long-Term Wayne Enterprises + Stark` + attendee `[[Tony Stark (Stark)]]` → title `Long-Term Wayne Enterprises + Stark`.
    - `Lucius Fox - IS Support` + attendee `[[Lucius Fox (WE)]]` → title `IS Support`.
@@ -64,7 +64,7 @@ A "section" in a daily note is bounded by lines containing only `---` (or the fi
 - Bucket sections into:
   - **Move** — has `#parent`.
   - **Suggest** — no `#parent` but the section is substantive (see rule 2).
-  - **Skip** — no `#parent`, trivial/personal, OR the section is empty after stripping comment blocks (this is what happens to the preamble section above the template's first `---`).
+  - **Skip** — no `#parent`, trivial/personal, OR the section is empty after stripping comment blocks and blank starter lines (`## ` with no title, empty `#parent:` / `#attendees:`, a lone `- `). An untouched template section is always Skip, and is left in the note.
 
 ### 3. Confirm the plan with the user
 Before touching anything, print a preview:
@@ -131,7 +131,7 @@ For the last section (no trailing `---` originally), omit it:
 
 **Gotcha: `patch_content` cannot edit list-valued frontmatter.** If you need to fix the `attendees:` list on a just-created note (e.g. wrong wikilink), `obsidian_patch_content` with `target_type=frontmatter, target=attendees, operation=replace` will coerce whatever you pass (YAML block, JSON array, comma list) into a single quoted **string** — breaking the list format sibling notes and dataview queries depend on. The reliable fix is `obsidian_delete_file` + `obsidian_append_content` to rewrite the file with the correct YAML list.
 
-**Gotcha: `patch_content` returns `invalid-target` for every heading when the file starts with a `%% ... %%` comment block.** Empirically confirmed: any `%% ... %%` block at the top of the file — with OR without a bare `---` between it and the first H2 — breaks `target_type=heading` lookups entirely. Every heading call on that file fails, not just one. (An earlier version of this note blamed only the bare `---`; that was incomplete. The `%%` block alone is enough.) There's no known way to reshape the daily note to avoid this while keeping the template preamble.
+**Gotcha: `patch_content` returns `invalid-target` for every heading when the file starts with a `%% ... %%` comment block.** Empirically confirmed: any `%% ... %%` block at the top of the file — with OR without a bare `---` between it and the first H2 — breaks `target_type=heading` lookups entirely. Every heading call on that file fails, not just one. (An earlier version of this note blamed only the bare `---`; that was incomplete. The `%%` block alone is enough.) The current Daily Note template has no preamble for this reason; notes created from older templates may still have one.
 
 - **Fallback:** for any daily note that starts with `%% ... %%`, don't try `patch_content`. Instead, read the whole file, build the new content in memory (preserve the `%% %%` block verbatim, stub the promoted H2 sections, leave the untouched sections in place), `obsidian_delete_file` the daily note, then `obsidian_append_content` to rewrite it whole. It's heavier than patching but 100% reliable.
 - **Fast path still works** for daily notes that have NO `%% ... %%` preamble at all (older notes from before the template was introduced). Use `patch_content` per H2 as normal in that case.
@@ -145,7 +145,7 @@ Report back:
 ## Edge cases
 
 - **No `---` separators at all.** Treat the whole file as a single section; the rules above still apply (usually results in Skip).
-- **Template preamble at the top of the file.** The Daily Note template puts a `%% ... %%` instruction block directly above the first `## ` heading (no leading `---`). Strip comment blocks first (step 2). What's left in the first section is just that H2 and its body — process it like any other section. The `%%` block itself is discarded from parsing but stays in the daily note on disk untouched.
+- **Comment preamble at the top of the file.** Daily notes created from older templates start with a `%% ... %%` instruction block directly above the first `## ` heading (no leading `---`). Strip comment blocks first (step 2). What's left in the first section is just that H2 and its body — process it like any other section. The `%%` block itself is discarded from parsing but stays in the daily note on disk untouched.
 - **Section has `#parent` but no heading.** Ask for a title — a moved note without a filename can't be created.
 - **Multiple `#parent:` values in one section.** Ask which one wins; don't guess.
 - **Attendee wikilink refers to a note that doesn't exist yet.** Offer to create it via [[obsidian-notes]] `create-user` mode before finishing the split, so backlinks resolve.

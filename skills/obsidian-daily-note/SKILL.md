@@ -22,8 +22,8 @@ Never use `obsidian_put_content` on a note that already exists for the target da
 
 - Path: `Daily Notes/YYYY/MM/YYYY-MM-DD.md` (core Daily Notes plugin, format `YYYY/MM/YYYY-MM-DD`). Before creating anything, list the target month's folder and check that existing notes follow this pattern; if they don't, follow what the vault actually uses and tell the user.
 - Content: the template body verbatim. No frontmatter and no `# YYYY-MM-DD` heading — existing daily notes have neither. The template has no `{{date}}` placeholders; if a future version adds `{{date}}`, `{{date:FORMAT}}` or `{{title}}`, substitute them the way Obsidian's core Templates plugin would.
-- The template opens with a `%% … %%` comment block explaining section shape. Keep it: the split skill ignores it, and it's hidden in preview.
-- Because the note starts with a `%% … %%` block, `obsidian_patch_content` heading lookups fail on it (see the gotcha in [[obsidian-split-daily-note]] step 6). Never patch daily notes by heading: read the whole note, edit it in memory, and write it back.
+- The template is a single starter section (`## `, `#parent: `, `#attendees: `, `- `) for the user to fill in. Copy it as-is, blanks included.
+- If a daily note starts with a `%% … %%` comment block (older notes and older templates did), `obsidian_patch_content` heading lookups fail on it (see the gotcha in [[obsidian-split-daily-note]] step 6): read the whole note, edit it in memory, and write it back. Notes without that block can be patched by heading as normal.
 
 ## Mode: create
 
@@ -45,11 +45,11 @@ Arguments (slash command): `$1` = target date, optional, defaults to today. The 
 1. **Find the source note**: the most recent daily note *before* the target date. List `Daily Notes/YYYY/MM/` for the target month (and the previous one if needed) and take the latest date before the target. Don't go back more than 14 days without asking.
 2. **Collect open tasks** from the source:
    - Lines matching `^\s*[-*] \[ \] ` (unchecked). Include each task's indented child lines (sub-bullets, sub-tasks) as part of the task.
-   - Skip anything inside the template's `%% … %%` block.
+   - Skip anything inside a `%% … %%` comment block.
    - Skip tasks that are already stubs from an earlier carry-over.
    - Remember which `## ` section each task came from.
 3. **Show the list** grouped by source section, and ask which to carry (default: all). Nothing is written before the user confirms.
-4. **Write to the target note**: add a section immediately after the template's closing `%%` (before the first `## `):
+4. **Write to the target note**: add a section at the top of the note (after a leading `%% … %%` block if there is one), before the first `## `:
 
    ```
    ## Carried over
@@ -61,7 +61,7 @@ Arguments (slash command): `$1` = target date, optional, defaults to today. The 
    ---
    ```
 
-   Keep task text, child lines, Tasks-plugin emoji fields (📅 due, ⏫ priority, etc.) and wikilinks exactly as written. Append `(from: {heading})` only when the heading adds context the task text lacks. If a `## Carried over` section already exists, append to it instead of adding a second one. Since heading patches don't work on these notes, read the note, insert the text, and write it back with `obsidian_put_content` — the one case where overwriting the target note is allowed, and only after re-reading it immediately before writing so you don't clobber edits.
+   Keep task text, child lines, Tasks-plugin emoji fields (📅 due, ⏫ priority, etc.) and wikilinks exactly as written. Append `(from: {heading})` only when the heading adds context the task text lacks. If a `## Carried over` section already exists, append to it instead of adding a second one. Insert it by reading the note, adding the text, and writing it back with `obsidian_put_content` (a top-of-file insert can't be done with a heading patch) — the one case where overwriting the target note is allowed, and only after re-reading it immediately before writing so you don't clobber edits.
 5. **Update the source note** so each task lives in exactly one place (otherwise the Action Items dashboard shows duplicates): replace each carried task block with a single stub line
 
    ```
