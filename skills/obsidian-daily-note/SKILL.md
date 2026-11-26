@@ -23,7 +23,7 @@ Never use `obsidian_put_content` on a note that already exists for the target da
 - Path: `Daily Notes/YYYY/MM/YYYY-MM-DD.md` (core Daily Notes plugin, format `YYYY/MM/YYYY-MM-DD`). Before creating anything, call `obsidian_get_recent_periodic_notes` and check that the latest notes follow this pattern; if they don't, follow what the vault actually uses and tell the user.
 - Content: the template body verbatim. No frontmatter and no `# YYYY-MM-DD` heading — existing daily notes have neither. The template has no `{{date}}` placeholders; if a future version adds `{{date}}`, `{{date:FORMAT}}` or `{{title}}`, substitute them the way Obsidian's core Templates plugin would.
 - The template opens with a `%% … %%` comment block explaining section shape. Keep it: the split skill ignores it, and it's hidden in preview.
-- Don't add a bare `---` line between the closing `%%` and the first `## ` heading (the Local REST API parser treats it as frontmatter and breaks heading lookups).
+- Because the note starts with a `%% … %%` block, `obsidian_patch_content` heading lookups fail on it (see the gotcha in [[obsidian-split-daily-note]] step 6). Never patch daily notes by heading: read the whole note, edit it in memory, and write it back.
 
 ## Mode: create
 
@@ -61,7 +61,7 @@ Arguments (slash command): `$1` = target date, optional, defaults to today. The 
    ---
    ```
 
-   Keep task text, child lines, Tasks-plugin emoji fields (📅 due, ⏫ priority, etc.) and wikilinks exactly as written. Append `(from: {heading})` only when the heading adds context the task text lacks. If a `## Carried over` section already exists, append to it instead of adding a second one. Since the comment block makes heading patches unreliable, do this by reading the note, inserting the text, and writing it back — this is the one case where `obsidian_put_content` on the target note is allowed, and only after re-reading it immediately before writing so you don't clobber edits.
+   Keep task text, child lines, Tasks-plugin emoji fields (📅 due, ⏫ priority, etc.) and wikilinks exactly as written. Append `(from: {heading})` only when the heading adds context the task text lacks. If a `## Carried over` section already exists, append to it instead of adding a second one. Since heading patches don't work on these notes, read the note, insert the text, and write it back with `obsidian_put_content` — the one case where overwriting the target note is allowed, and only after re-reading it immediately before writing so you don't clobber edits.
 5. **Update the source note** so each task lives in exactly one place (otherwise the Action Items dashboard shows duplicates): replace each carried task block with a single stub line
 
    ```
