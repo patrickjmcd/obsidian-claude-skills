@@ -82,8 +82,8 @@ Skip:
 Wait for user confirmation (or per-section adjustments) before writing anything.
 
 ### 4. Resolve each `#parent:` to a folder
-- Start by listing vault root + `WE/` for candidate folders.
-- Exact match by folder name (case-insensitive tolerated but flag mismatch) — e.g. `Stark Project` → `WE/Stark Project/`.
+- Search the whole folder tree, not just the vault root: project folders are often nested (e.g. `Work/WE/Stark Project/`). Walk down from the root with `obsidian_list_files_in_dir`, skipping `Daily Notes/`, `Attendees/`, `Templates/` and attachment folders (`attachments/`, `images/`, `uploads/`).
+- Match on the folder's own name at any depth (case-insensitive tolerated but flag mismatch) — e.g. `Stark Project` → `Work/WE/Stark Project/`. A `#parent:` value containing `/` (e.g. `WE/Stark Project` or `Stark Project/(R) Weekly Sync`) matches a folder whose path ends with that suffix.
 - If multiple candidates or none: ask the user which folder to use, offering the closest matches.
 - Cache the resolution per `#parent` value for the run.
 
